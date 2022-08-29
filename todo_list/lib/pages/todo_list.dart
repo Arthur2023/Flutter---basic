@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:todo_list/repositorys/todo_repository.dart';
 import 'package:todo_list/widgets/todo_list_item.dart';
 
 import '../models/todo.dart';
@@ -12,12 +13,23 @@ class TodoListPage extends StatefulWidget {
 
 class _TodoListPageState extends State<TodoListPage> {
   final emailController = TextEditingController();
+  final repository = TodoRepository();
 
   List<Todo> todos = [];
+
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+
+    repository.getTodoList().then((value) => setState(() => todos = value));
+  }
 
   void onDelete(Todo todo) {
     final currentIndex = todos.indexOf(todo);
     setState(() => todos.remove(todo));
+    repository.saveTodoList(todos);
 
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -33,6 +45,7 @@ class _TodoListPageState extends State<TodoListPage> {
         action: SnackBarAction(
           onPressed: () {
             setState(() => todos.insert(currentIndex, todo));
+            repository.saveTodoList(todos);
           },
           label: 'Desfazer',
         ),
@@ -44,8 +57,8 @@ class _TodoListPageState extends State<TodoListPage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-          title: Text('Limpar tudo?'),
-          content: Text('Deseja realmente apagar todas as tarefas?'),
+          title: const Text('Limpar tudo?'),
+          content: const Text('Deseja realmente apagar todas as tarefas?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -55,6 +68,7 @@ class _TodoListPageState extends State<TodoListPage> {
               onPressed: () {
                 Navigator.pop(context);
                 setState(() => todos.clear());
+                repository.saveTodoList(todos);
               },
               child: const Text(
                 'Limpar tudo',
@@ -82,23 +96,31 @@ class _TodoListPageState extends State<TodoListPage> {
                       Expanded(
                         child: TextField(
                           controller: emailController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
                             hintText: 'Adicione uma tarefa',
+                            errorText: errorMessage,
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
                         onPressed: () {
+                          if (emailController.text.isEmpty) {
+                            setState(() => errorMessage = 'Título inválido');
+                            return;
+                          }
+
                           final newTodo = Todo(
                             title: emailController.text,
                             dateTime: DateTime.now(),
                           );
 
+                          errorMessage = null;
                           setState(() => todos.add(newTodo));
 
                           emailController.clear();
+                          repository.saveTodoList(todos);
                         },
                         style: ElevatedButton.styleFrom(
                           primary: Colors.purple,
